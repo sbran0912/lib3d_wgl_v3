@@ -49,48 +49,18 @@ export class Solid {
    *
    * Pipeline: Objekt-Koordinaten
    *   → wgl.setModelView(view × world)   (GPU übernimmt Transformation)
-   *   → wgl.line3D(vertex3D, vertex3D)   (3D-Koordinaten an GPU)
+   *   → wgl.line(vertex, vertex)          (3D-Koordinaten an GPU)
    *   → Vertex-Shader: proj * modelView * aPos
-   *
-   * @param proj  Projection-Matrix (z.B. von perspectiveMatrix)
-   * @param view  View-Matrix (Kamera, z.B. von lookAtMatrix)
-   * @param world World-Matrix (Position/Rotation des Objekts im Raum)
-   * @param fog   Optionales per-edge-Fog: { baseColor, near, far, max, centerDepth? }
-   *              Jede Kante wird einzeln abgedunkelt, basierend auf ihrer
-   *              mittleren Tiefe in Kamerakoordinaten.
    */
   draw(
     proj: l3d.Matrix4x4,
     view: l3d.Matrix4x4,
     world: l3d.Matrix4x4,
-    fog?: { baseColor: string; near: number; far: number; max: number; centerDepth?: number },
   ): void {
-    // 1. Kombinierte view × world-Matrix (einmal berechnen)
     const vw = l3d.multMatrix(view, world);
-
-    // 2. Tiefe jedes Vertex in Kamerakoordinaten berechnen (für Fog – CPU-seitig)
-    const depths = this.vertices.map((v) => v.transform(vw).z);
-
-    // 3. ModelView-Matrix an GPU senden
     wgl.setModelView(vw);
 
-    // 4. Kanten zeichnen (mit per-edge Fog falls gewünscht)
     for (const [i, j] of this.edges) {
-      if (fog) {
-        const avgDepth = (depths[i] + depths[j]) / 2;
-        // relative Tiefe zum Körperzentrum (wenn angegeben)
-        let relDepth = avgDepth;
-        if (fog.centerDepth !== undefined) {
-          relDepth = avgDepth - fog.centerDepth;
-        }
-        let fogAmount = 0;
-        if (relDepth > fog.near) {
-          const t = Math.min(1, (relDepth - fog.near) / (fog.far - fog.near));
-          fogAmount = t * fog.max;
-        }
-        wgl.strokeColor(darkenHex(fog.baseColor, fogAmount));
-      }
-
       const a = this.vertices[i];
       const b = this.vertices[j];
       wgl.line(a.x, a.y, a.z, b.x, b.y, b.z);
