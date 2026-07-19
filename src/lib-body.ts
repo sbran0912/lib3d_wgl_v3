@@ -1,12 +1,8 @@
 /**
  * lib-body.ts  –  Physik-fähiger 3D-Körper
  *
- * Kapselt ein Solid mit Position, Rotation, Geschwindigkeit
- * und optionaler Hitbox für Kollisionserkennung.
- *
- * Optimierung: Einmalig wird ein WebGL-Mesh-Buffer aus allen Kanten
- * erzeugt (createMesh), dann pro Frame nur noch ein einziger Draw Call
- * (drawMesh) statt N Einzel-Linien.
+ * Kapselt ein Solid mit Position, Rotation, Geschwindigkeit und Farbe.
+ * Der Mesh-Buffer liegt im Solid (einmaliger GPU-Upload, shared).
  */
 
 import * as l3d from "./lib-3d.ts";
@@ -36,10 +32,6 @@ export class Body {
   color = "#ffffff";
   lineWidth = 1;
 
-  /** Gepufferter Mesh (einmalig aus solid.edges erzeugt) */
-  private _meshBuffer: WebGLBuffer | null = null;
-  private _meshVertexCount = 0;
-
   /**
    * Körper-Nebel: ganzer Körper wird dunkler, je weiter er
    * von der Kamera entfernt ist (absolute Kameratiefe).
@@ -54,20 +46,9 @@ export class Body {
     this.vel = new l3d.Vec3(0, 0, 0);
   }
 
-  /** Zeichnet den Body mittels einmalig erzeugtem Mesh-Buffer. */
+  /** Zeichnet den Body. Farbe und ModelView werden pro Body gesetzt,
+   *  der Mesh-Buffer kommt aus dem Solid (shared). */
   draw(proj: l3d.Matrix4x4, view: l3d.Matrix4x4): void {
-    // ── Mesh-Buffer einmalig erzeugen ──
-    if (!this._meshBuffer) {
-      const verts: number[] = [];
-      for (const [i, j] of this.solid.edges) {
-        const a = this.solid.vertices[i];
-        const b = this.solid.vertices[j];
-        verts.push(a.x, a.y, a.z, b.x, b.y, b.z);
-      }
-      this._meshBuffer = wgl.createMesh(new Float32Array(verts));
-      this._meshVertexCount = this.solid.edges.length * 2;
-    }
-
     // ── World-Matrix bauen ──
     const t = l3d.translateMatrix(this.pos.x, this.pos.y, this.pos.z);
     let world: l3d.Matrix4x4;
@@ -76,10 +57,6 @@ export class Body {
     } else {
       world = l3d.multMatrix(t, l3d.rotateMatrix(this.rotX, this.rotY, this.rotZ));
     }
-
-    // ── ModelView setzen ──
-    const vw = l3d.multMatrix(view, world);
-    wgl.setModelView(vw);
 
     wgl.strokeWidth(this.lineWidth);
 
@@ -93,8 +70,8 @@ export class Body {
     }
     wgl.strokeColor(darkenHex(this.color, bodyFog));
 
-    // ── Ein einziger Draw Call für alle Kanten ──
-    wgl.drawMesh(this._meshBuffer, this._meshVertexCount);
+    // ── Solid zeichnet mit shared Mesh-Buffer + eigener ModelView ──
+    this.solid.draw(proj, view, world);
   }
 
   /** Distanz zu einem anderen Body (Mittelpunkt zu Mittelpunkt). */
