@@ -212,6 +212,31 @@ function drawVertices3D(verts: Float32Array, mode: number) {
   gl.deleteBuffer(buf);
 }
 
+/** Erzeugt einen persistenten WebGL-Buffer aus einem flachen Vertex-Array.
+ *  Einmal angelegt, mit drawMesh() zeichnen – kein createBuffer/deleteBuffer
+ *  mehr pro Frame.
+ *  @param flatVerts  Float32Array mit abwechselnd x,y,z,x,y,z,...
+ *  @returns WebGLBuffer (STATIC_DRAW)
+ */
+export function createMesh(flatVerts: Float32Array): WebGLBuffer {
+  const buf = gl.createBuffer()!;
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, flatVerts, gl.STATIC_DRAW);
+  return buf;
+}
+
+/** Zeichnet einen per createMesh() angelegten Buffer als Linien.
+ *  @param buf    WebGLBuffer (von createMesh)
+ *  @param count  Anzahl Vertices (z.B. edges.length * 2)
+ */
+export function drawMesh(buf: WebGLBuffer, count: number) {
+  applyUniforms(true);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.enableVertexAttribArray(locPos);
+  gl.vertexAttribPointer(locPos, 3, gl.FLOAT, false, 0, 0);
+  gl.drawArrays(gl.LINES, 0, count);
+}
+
 /** Berechnet Mittelpunkt und maximale Ausdehnung einer 3D-Punktmenge */
 function shapeMetrics3D(pts: number[]): { cx: number; cy: number; cz: number; r: number } {
   const n = pts.length / 3;

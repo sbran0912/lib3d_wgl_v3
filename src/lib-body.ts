@@ -3,6 +3,10 @@
  *
  * Kapselt ein Solid mit Position, Rotation, Geschwindigkeit
  * und optionaler Hitbox für Kollisionserkennung.
+ *
+ * Optimierung: Einmalig wird ein WebGL-Mesh-Buffer aus allen Kanten
+ * erzeugt (createMesh), dann pro Frame nur noch ein einziger Draw Call
+ * (drawMesh) statt N Einzel-Linien.
  */
 
 import * as l3d from "./lib-3d.ts";
@@ -32,24 +36,17 @@ export class Body {
   color = "#ffffff";
   lineWidth = 1;
 
-  /**
-   * Per-edge-Tiefennebel: hintere Kanten werden dunkler,
-   * unabhängig von der Position des Körpers.
-   *   near = Abstand hinter dem Mittelzentrum (beginnende Abdunklung)
-   *   far  = Abstand hinter dem Mittelzentrum (max. Abdunklung)
-   *   max  = max. Abdunklung (0 = kein Effekt, 1 = schwarz)
-   */
-  static fogNear = 0;
-  static fogFar = 40;
-  static fogMax = 0.6;
+  /** Gepufferter Mesh (einmalig aus solid.edges erzeugt) */
+  private _meshBuffer: WebGLBuffer | null = null;
+  private _meshVertexCount = 0;
 
   /**
    * Körper-Nebel: ganzer Körper wird dunkler, je weiter er
    * von der Kamera entfernt ist (absolute Kameratiefe).
    */
-  static bodyFogNear = 100;
+  static bodyFogNear = 50;
   static bodyFogFar = 400;
-  static bodyFogMax = 0.5;
+  static bodyFogMax = 0.6;
 
   constructor(solid: Solid, x: number, y: number, z: number) {
     this.solid = solid;
@@ -57,9 +54,21 @@ export class Body {
     this.vel = new l3d.Vec3(0, 0, 0);
   }
 
-  /** Zeichnet den Body mit Körper-Nebel + per-edge Tiefennebel. */
+  /** Zeichnet den Body mittels einmalig erzeugtem Mesh-Buffer. */
   draw(proj: l3d.Matrix4x4, view: l3d.Matrix4x4): void {
-    // World-Matrix bauen (Rotation überspringen wenn alle Winkel 0 sind)
+    // ── Mesh-Buffer einmalig erzeugen ──
+    if (!this._meshBuffer) {
+      const verts: number[] = [];
+      for (const [i, j] of this.solid.edges) {
+        const a = this.solid.vertices[i];
+        const b = this.solid.vertices[j];
+        verts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      }
+      this._meshBuffer = wgl.createMesh(new Float32Array(verts));
+      this._meshVertexCount = this.solid.edges.length * 2;
+    }
+
+    // ── World-Matrix bauen ──
     const t = l3d.translateMatrix(this.pos.x, this.pos.y, this.pos.z);
     let world: l3d.Matrix4x4;
     if (this.rotX === 0 && this.rotY === 0 && this.rotZ === 0) {
@@ -67,28 +76,25 @@ export class Body {
     } else {
       world = l3d.multMatrix(t, l3d.rotateMatrix(this.rotX, this.rotY, this.rotZ));
     }
+
+    // ── ModelView setzen ──
+    const vw = l3d.multMatrix(view, world);
+    wgl.setModelView(vw);
+
     wgl.strokeWidth(this.lineWidth);
 
-    // Körper-Zentrum in Kamerakoordinaten
+    // ── Körper-Nebel (absolute Tiefe) → Basis-Farbe abdunkeln ──
     const centerCam = this.pos.transform(view);
     const depth = centerCam.z;
-
-    // 1. Körper-Nebel (absolute Tiefe) → Basis-Farbe abdunkeln
     let bodyFog = 0;
     if (depth > Body.bodyFogNear) {
       const t = Math.min(1, (depth - Body.bodyFogNear) / (Body.bodyFogFar - Body.bodyFogNear));
       bodyFog = t * Body.bodyFogMax;
     }
-    const baseColor = darkenHex(this.color, bodyFog);
+    wgl.strokeColor(darkenHex(this.color, bodyFog));
 
-    // 2. Per-edge-Nebel (relative Tiefe) → Solid.draw() dunkelt jede Kante einzeln
-    this.solid.draw(proj, view, world, {
-      baseColor,
-      near: Body.fogNear,
-      far: Body.fogFar,
-      max: Body.fogMax,
-      centerDepth: centerCam.z,
-    });
+    // ── Ein einziger Draw Call für alle Kanten ──
+    wgl.drawMesh(this._meshBuffer, this._meshVertexCount);
   }
 
   /** Distanz zu einem anderen Body (Mittelpunkt zu Mittelpunkt). */
