@@ -40,8 +40,8 @@ export class Solid {
   edges: [number, number][];
 
   /** Gecachter GPU-Mesh-Buffer (einmalig aus allen Kanten erzeugt) */
-  private _meshBuffer: WebGLBuffer | null = null;
-  private _meshVertexCount = 0;
+  private meshBuffer: WebGLBuffer | null = null;
+  private meshVertexCount = 0;
 
   constructor(vertices: l3d.Vec3[], edges: [number, number][]) {
     this.vertices = vertices;
@@ -49,16 +49,16 @@ export class Solid {
   }
 
   /** Einmalig den GPU-Mesh-Buffer aus allen Kanten erzeugen */
-  private _ensureMesh(): void {
-    if (this._meshBuffer) return;
+  private ensureMesh(): void {
+    if (this.meshBuffer) return;
     const verts: number[] = [];
     for (const [i, j] of this.edges) {
       const a = this.vertices[i];
       const b = this.vertices[j];
       verts.push(a.x, a.y, a.z, b.x, b.y, b.z);
     }
-    this._meshBuffer = wgl.createMesh(new Float32Array(verts));
-    this._meshVertexCount = this.edges.length * 2;
+    this.meshBuffer = wgl.createMesh(new Float32Array(verts));
+    this.meshVertexCount = this.edges.length * 2;
   }
 
   /**
@@ -69,14 +69,13 @@ export class Solid {
    *   → wgl.drawMesh (ein gl.drawArrays-Aufruf für alle Kanten)
    */
   draw(
-    proj: l3d.Matrix4x4,
     view: l3d.Matrix4x4,
     world: l3d.Matrix4x4,
   ): void {
-    this._ensureMesh();
+    this.ensureMesh();
     const vw = l3d.multMatrix(view, world);
     wgl.setModelView(vw);
-    wgl.drawMesh(this._meshBuffer!, this._meshVertexCount);
+    wgl.drawMesh(this.meshBuffer!, this.meshVertexCount);
   }
 }
 

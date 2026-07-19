@@ -64,7 +64,7 @@ function draw() {
   // ================================================================
   wgl.strokeColor("#445");
   wgl.strokeWidth(1);
-  grid.draw(proj, view, l3d.identityMatrix());
+  grid.draw(view, l3d.identityMatrix());
 
   // ================================================================
   // 2. KUGEL – Orbit um Pivot + Eigenrotation
@@ -94,7 +94,7 @@ function draw() {
   // 4. ALLE BODYS ZEICHNEN
   // ================================================================
   for (const b of bodies) {
-    b.draw(proj, view);
+    b.draw(view);
   }
 
   // ================================================================

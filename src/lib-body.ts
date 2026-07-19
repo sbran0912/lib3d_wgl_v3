@@ -48,7 +48,7 @@ export class Body {
 
   /** Zeichnet den Body. Farbe und ModelView werden pro Body gesetzt,
    *  der Mesh-Buffer kommt aus dem Solid (shared). */
-  draw(proj: l3d.Matrix4x4, view: l3d.Matrix4x4): void {
+  draw(view: l3d.Matrix4x4): void {
     // ── World-Matrix bauen ──
     const t = l3d.translateMatrix(this.pos.x, this.pos.y, this.pos.z);
     let world: l3d.Matrix4x4;
@@ -71,7 +71,7 @@ export class Body {
     wgl.strokeColor(darkenHex(this.color, bodyFog));
 
     // ── Solid zeichnet mit shared Mesh-Buffer + eigener ModelView ──
-    this.solid.draw(proj, view, world);
+    this.solid.draw(view, world);
   }
 
   /** Distanz zu einem anderen Body (Mittelpunkt zu Mittelpunkt). */
