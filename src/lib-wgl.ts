@@ -231,6 +231,7 @@ export function createMesh(flatVerts: Float32Array): WebGLBuffer {
  */
 export function drawMesh(buf: WebGLBuffer, count: number) {
   applyUniforms(true);
+  gl.lineWidth(state.lineW);
   gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.enableVertexAttribArray(locPos);
   gl.vertexAttribPointer(locPos, 3, gl.FLOAT, false, 0, 0);

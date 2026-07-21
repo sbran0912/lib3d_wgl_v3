@@ -28,7 +28,7 @@ const CAM_UP     = new l3d.Vec3(0, 1, 0);
 
 const grid = createGrid(600, 24);
 
-const sphere = new Body(createSphere(35, 12, 9), 130, 25, -200);
+const sphere = new Body(createSphere(35, 12, 9), 0, 0, 0);
 sphere.color   = "#66ff88";
 sphere.lineWidth = 1;
 
@@ -105,6 +105,18 @@ function draw() {
   wgl.strokeColor("#ffffff66");
   wgl.pointSize(6);
   wgl.point(pivot.x, pivot.y, pivot.z);
+
+  // ================================================================
+  // 6. ZWEI LINIEN – nahe Kameraursprung, in Z-Richtung
+  // ================================================================
+  wgl.strokeColor("#ff8800");
+  wgl.strokeWidth(2);
+
+  // Linie 1: links-unterhalb der Kamera, ragt in +Z (in die Szene)
+  wgl.line(0, 0, 0, 0, 10, 150);
+
+  // Linie 2: rechts-oberhalb der Kamera, ragt in +Z (in die Szene)
+  wgl.line(0, 0, 0, 0, 30, 150);
 }
 
 // ====================================================================
