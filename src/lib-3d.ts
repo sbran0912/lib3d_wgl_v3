@@ -108,7 +108,7 @@ export class Vec3 {
 }
 
 // 4x4 Translationsmatrix
-export function translateMatrix(dx: number, dy: number, dz: number) {
+export function translateMatrix(dx: number, dy: number, dz: number): Matrix4x4 {
   return [
     [1, 0, 0, dx],
     [0, 1, 0, dy],
@@ -376,4 +376,107 @@ export class Plane {
 
     return p1.add(dir.scale(t));
   }
+}
+
+/**
+ * Prüft, ob ein Punkt innerhalb eines konvexen Polygons liegt (Edge-Cross-Test).
+ *
+ * @param p        zu prüfender Punkt (auf der Polygonebene)
+ * @param polygon  konvexes Polygon als Vec3-Array (CCW-Winding bzgl. `normal`)
+ * @param normal   Normalenvektor der Polygonebene
+ */
+function pointInConvexPolygon(p: Vec3, polygon: Vec3[], normal: Vec3): boolean {
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i];
+    const b = polygon[(i + 1) % polygon.length];
+    const edge = b.sub(a);
+    const toPoint = p.sub(a);
+    if (edge.cross(toPoint).dot(normal) < 0) return false;
+  }
+  return true;
+}
+
+/**
+ * Berechnet den Schnittpunkt einer Strecke mit einer Box (6 Faces).
+ *
+ * @param lineP1   Startpunkt der Strecke (Weltkoordinaten)
+ * @param lineP2   Endpunkt der Strecke (Weltkoordinaten)
+ * @param boxVerts 8 Eckpunkte der Box in Weltkoordinaten
+ * @returns Der Schnittpunkt, der lineP1 am nächsten liegt, oder null
+ */
+export function intersectLineBox(
+  lineP1: Vec3,
+  lineP2: Vec3,
+  boxVerts: Vec3[],
+): Vec3 | null {
+  const all = intersectLineBoxAll(lineP1, lineP2, boxVerts);
+  return all.length > 0 ? all[0] : null;
+}
+
+const BOX_FACES: [number, number, number, number][] = [
+  [0, 3, 2, 1], // front  (z = -hd)
+  [4, 5, 6, 7], // back   (z = +hd)
+  [0, 4, 7, 3], // left   (x = -hw)
+  [1, 2, 6, 5], // right  (x = +hw)
+  [0, 1, 5, 4], // bottom (y = -hh)
+  [3, 7, 6, 2], // top    (y = +hh)
+];
+
+/**
+ * Berechnet alle Schnittpunkte einer Strecke mit einer Box, sortiert nach
+ * Distanz zu lineP1.
+ *
+ * @param lineP1   Startpunkt der Strecke (Weltkoordinaten)
+ * @param lineP2   Endpunkt der Strecke (Weltkoordinaten)
+ * @param boxVerts 8 Eckpunkte der Box in Weltkoordinaten
+ * @returns Sortiertes Array aller Schnittpunkte (Entry → Exit)
+ */
+export function intersectLineBoxAll(
+  lineP1: Vec3,
+  lineP2: Vec3,
+  boxVerts: Vec3[],
+): Vec3[] {
+  const raw: Vec3[] = [];
+
+  for (const [i0, i1, i2, i3] of BOX_FACES) {
+    const quad = [boxVerts[i0], boxVerts[i1], boxVerts[i2], boxVerts[i3]];
+    const plane = Plane.fromPoints(quad[0], quad[1], quad[2]);
+    const hit = plane.intersectLine(lineP1, lineP2);
+    if (!hit) continue;
+
+    if (pointInConvexPolygon(hit, quad, plane.normal)) {
+      raw.push(hit);
+    }
+  }
+
+  // Deduplizieren (Kanten-/Ecktreffer werden von 2 bzw. 3 Faces gemeldet)
+  const unique: Vec3[] = [];
+  for (const h of raw) {
+    let dup = false;
+    for (const u of unique) {
+      if (h.sub(u).squaredLength() < 1e-8) { dup = true; break; }
+    }
+    if (!dup) unique.push(h);
+  }
+
+  // Sortieren nach Distanz zu lineP1
+  unique.sort((a, b) => {
+    return a.sub(lineP1).squaredLength() - b.sub(lineP1).squaredLength();
+  });
+
+  return unique;
+}
+
+/**
+ * Prüft, ob ein Punkt innerhalb einer Box liegt.
+ *
+ * @param p         Punkt in Weltkoordinaten
+ * @param boxVerts  8 Eckpunkte der Box in Weltkoordinaten
+ */
+export function isPointInsideBox(p: Vec3, boxVerts: Vec3[]): boolean {
+  for (const [i0, i1, i2] of BOX_FACES) {
+    const plane = Plane.fromPoints(boxVerts[i0], boxVerts[i1], boxVerts[i2]);
+    if (plane.sideOf(p) > 0) return false;
+  }
+  return true;
 }

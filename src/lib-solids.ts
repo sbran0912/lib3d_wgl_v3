@@ -192,6 +192,23 @@ export function createGrid(size: number, cells: number): Solid {
 }
 
 /**
+ * Erzeugt eine einzelne Linie zwischen zwei 3D-Punkten.
+ *
+ * @param x1,y1,z1  Startpunkt
+ * @param x2,y2,z2  Endpunkt
+ * @returns Solid mit 2 Ecken und 1 Kante
+ */
+export function createLine(
+  x1: number, y1: number, z1: number,
+  x2: number, y2: number, z2: number,
+): Solid {
+  const V = (x: number, y: number, z: number) => new l3d.Vec3(x, y, z);
+  const vertices = [V(x1, y1, z1), V(x2, y2, z2)];
+  const edges: [number, number][] = [[0, 1]];
+  return new Solid(vertices, edges);
+}
+
+/**
  * Erzeugt eine Drahtgitter-Kugel (UV-Sphere).
  *
  * @param radius   Radius der Kugel

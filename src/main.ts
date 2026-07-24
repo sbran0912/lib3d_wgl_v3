@@ -4,7 +4,7 @@
 
 import * as wgl from "./lib-wgl.ts";
 import * as l3d from "./lib-3d.ts";
-import { createBox, createGrid, createSphere } from "./lib-solids.ts";
+import { Solid, createBox, createGrid, createLine, createSphere } from "./lib-solids.ts";
 import { Body } from "./lib-body.ts";
 
 // ====================================================================
@@ -18,7 +18,7 @@ const FOV_Y = 1.2;
 const Z_NEAR = 0.1;
 const Z_FAR = 1000;
 
-const CAM_POS    = new l3d.Vec3(40, 140, -180);
+const CAM_POS    = new l3d.Vec3(-40, 140, -180);
 const CAM_TARGET = new l3d.Vec3(0, 0, 0);
 const CAM_UP     = new l3d.Vec3(0, 1, 0);
 
@@ -28,21 +28,49 @@ const CAM_UP     = new l3d.Vec3(0, 1, 0);
 
 const grid = createGrid(600, 24);
 
-const sphere = new Body(createSphere(35, 12, 9), 0, 0, 0);
-sphere.color   = "#66ff88";
-sphere.lineWidth = 1;
+const line1 = new Body(createLine(0, 0, 0, 0, 10, 150), 0, 0, -40);
+line1.color = "#ff8800";
+line1.lineWidth = 2;
 
-const box = new Body(createBox(20, 20, 20), 0, 0, 0);
-box.color   = "#ff66cc";
+const line2 = new Body(createLine(0, 0, 0, 100, 60, 150), 0, 0, -40);
+line2.color = "#ff8800";
+line2.lineWidth = 2;
+
+const box = new Body(createBox(40, 80, 60), 0, 20, 100);
+box.color = "#00ffff";
 box.lineWidth = 1;
 
-const bodies = [sphere, box];
+const bodies = [box, line1, line2];
 
 // ====================================================================
-// Pivot / Orbit für die Kugel
+// LINE↔BOX INTERSECTION – LINES CLIPPEN
 // ====================================================================
+const boxVertsWorld = box.solid.vertices.map(v => v.add(box.pos));
 
-const pivot = new l3d.Vec3(0, 0, 0);
+for (const line of [line1, line2]) {
+  const p1 = line.solid.vertices[0].add(line.pos);
+  const p2 = line.solid.vertices[1].add(line.pos);
+
+  const hits = l3d.intersectLineBoxAll(p1, p2, boxVertsWorld);
+  if (hits.length === 0) continue;
+
+  const startInside = l3d.isPointInsideBox(p1, boxVertsWorld);
+
+  const newVerts: l3d.Vec3[] = [];
+  const newEdges: [number, number][] = [];
+
+  if (hits.length === 1 && startInside) {
+    // Inside → Outside: exit → end
+    newVerts.push(hits[0].sub(line.pos), line.solid.vertices[1]);
+    newEdges.push([0, 1]);
+  } else {
+    // Outside → irgendwo: start → erster Treffer (komplett abgeschnitten)
+    newVerts.push(line.solid.vertices[0], hits[0].sub(line.pos));
+    newEdges.push([0, 1]);
+  }
+
+  line.solid = new Solid(newVerts, newEdges);
+}
 
 // ====================================================================
 // DRAW-SCHLEIFE
@@ -67,56 +95,12 @@ function draw() {
   grid.draw(view, l3d.identityMatrix());
 
   // ================================================================
-  // 2. KUGEL – Orbit um Pivot + Eigenrotation
-  // ================================================================
-  const sphereOrbitAngle = time * 0.5;
-  const sphereOrbitPos = l3d.rotateAround(
-    new l3d.Vec3(120, 30, 0),
-    pivot,
-    l3d.rotateMatrix(0, sphereOrbitAngle, 0),
-  );
-  sphere.pos = sphereOrbitPos;
-  sphere.rotY = time * 0.8;
-
-  // ================================================================
-  // 3. GRÜNER BOX – Orbit um Pivot + Eigenrotation
-  // ================================================================
-  const boxOrbitAngle = time * 0.9;
-  const boxOrbitPos = l3d.rotateAround(
-    new l3d.Vec3(70, 10, 0),
-    pivot,
-    l3d.rotateMatrix(0, boxOrbitAngle, 0),
-  );
-  box.pos = boxOrbitPos;
-  box.rotY = time * 1.2;
-
-  // ================================================================
-  // 4. ALLE BODYS ZEICHNEN
+  // 2. ALLE BODYS ZEICHNEN
   // ================================================================
   for (const b of bodies) {
     b.draw(view);
   }
 
-  // ================================================================
-  // 5. PIVOT-MARKER
-  // ================================================================
-  // ModelView zurücksetzen, damit der Pivot in Weltkoordinaten erscheint
-  wgl.setModelView(l3d.multMatrix(view, l3d.identityMatrix()));
-  wgl.strokeColor("#ffffff66");
-  wgl.pointSize(6);
-  wgl.point(pivot.x, pivot.y, pivot.z);
-
-  // ================================================================
-  // 6. ZWEI LINIEN – nahe Kameraursprung, in Z-Richtung
-  // ================================================================
-  wgl.strokeColor("#ff8800");
-  wgl.strokeWidth(2);
-
-  // Linie 1: links-unterhalb der Kamera, ragt in +Z (in die Szene)
-  wgl.line(0, 0, 0, 0, 10, 150);
-
-  // Linie 2: rechts-oberhalb der Kamera, ragt in +Z (in die Szene)
-  wgl.line(0, 0, 0, 0, 30, 150);
 }
 
 // ====================================================================
