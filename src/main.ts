@@ -43,31 +43,49 @@ box.lineWidth = 1;
 const bodies = [box, line1, line2];
 
 // ====================================================================
-// LINE↔BOX INTERSECTION – LINES CLIPPEN
+// LINE↔BOX INTERSECTION – LINES CLIPPEN (Plane.fromFace + Boundary)
 // ====================================================================
 const boxVertsWorld = box.solid.vertices.map(v => v.add(box.pos));
+console.log(boxVertsWorld);
+// 6 Face-Planes der Box, jeweils begrenzt durch das zugehörige Viereck.
+// Plane.fromFace() erstellt die Ebene inkl. Polygon-Boundary, sodass
+// intersectLine() nur Treffer innerhalb des Faces liefert.
+const boxFaces = [
+  l3d.Plane.fromFace([boxVertsWorld[0], boxVertsWorld[3], boxVertsWorld[2], boxVertsWorld[1]]), // front
+  l3d.Plane.fromFace([boxVertsWorld[4], boxVertsWorld[5], boxVertsWorld[6], boxVertsWorld[7]]), // back
+  l3d.Plane.fromFace([boxVertsWorld[0], boxVertsWorld[4], boxVertsWorld[7], boxVertsWorld[3]]), // left
+  l3d.Plane.fromFace([boxVertsWorld[1], boxVertsWorld[2], boxVertsWorld[6], boxVertsWorld[5]]), // right
+  l3d.Plane.fromFace([boxVertsWorld[0], boxVertsWorld[1], boxVertsWorld[5], boxVertsWorld[4]]), // bottom
+  l3d.Plane.fromFace([boxVertsWorld[3], boxVertsWorld[7], boxVertsWorld[6], boxVertsWorld[2]]), // top
+];
+console.log(boxFaces);
 
 for (const line of [line1, line2]) {
   const p1 = line.solid.vertices[0].add(line.pos);
   const p2 = line.solid.vertices[1].add(line.pos);
 
-  const hits = l3d.intersectLineBoxAll(p1, p2, boxVertsWorld);
-  if (hits.length === 0) continue;
-
-  const startInside = l3d.isPointInsideBox(p1, boxVertsWorld);
-
-  const newVerts: l3d.Vec3[] = [];
-  const newEdges: [number, number][] = [];
-
-  if (hits.length === 1 && startInside) {
-    // Inside → Outside: exit → end
-    newVerts.push(hits[0].sub(line.pos), line.solid.vertices[1]);
-    newEdges.push([0, 1]);
-  } else {
-    // Outside → irgendwo: start → erster Treffer (komplett abgeschnitten)
-    newVerts.push(line.solid.vertices[0], hits[0].sub(line.pos));
-    newEdges.push([0, 1]);
+  // Nächsten Treffer zur Startlinie finden (Closest-Hit)
+  let closestHit: l3d.Vec3 | null = null;
+  let closestDistSq = Infinity;
+  for (const face of boxFaces) {
+    const hit = face.intersectLine(p1, p2);
+    if (hit) {
+      const dSq = hit.sub(p1).squaredLength();
+      if (dSq < closestDistSq) {
+        // Duplikat-Check: gleicher Punkt wie bisheriges Minimum?
+        if (!closestHit || hit.sub(closestHit).squaredLength() > 1e-8) {
+          closestDistSq = dSq;
+          closestHit = hit;
+        }
+      }
+    }
   }
+
+  if (!closestHit) continue;
+
+  // Linie startet immer von außerhalb → erster Hit = Entry
+  const newVerts = [line.solid.vertices[0], closestHit.sub(line.pos)] as l3d.Vec3[];
+  const newEdges: [number, number][] = [[0, 1]];
 
   line.solid = new Solid(newVerts, newEdges);
 }
