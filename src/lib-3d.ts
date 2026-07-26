@@ -314,24 +314,6 @@ export class Plane {
   }
 
   /**
-   * Ebene aus einem Face (3 oder 4 Vertices) erstellen – mit Boundary.
-   * Die ersten 3 Vertices definieren die Ebene, alle Vertices das Polygon.
-   *
-   * Beispiel: Vorderseite einer Box
-   *   const front = Plane.fromFace([
-   *     boxVerts[0], boxVerts[3], boxVerts[2], boxVerts[1],
-   *   ]);
-   *   // front.intersectLine(p1, p2) prüft automatisch auf Polygon-Treffer
-   */
-  static fromFace(faceVerts: Vec3[]): Plane {
-    const normal = faceVerts[1].sub(faceVerts[0])
-      .cross(faceVerts[2].sub(faceVerts[0]))
-      .normalize();
-    const distance = -normal.dot(faceVerts[0]);
-    return new Plane(normal, distance, [...faceVerts]);
-  }
-
-  /**
    * Berechnet den Schnittpunkt einer Strecke (p1→p2) mit der Ebene.
    *
    * Wenn die Ebene eine boundary (Polygon) besitzt, wird zusätzlich geprüft,
@@ -366,29 +348,47 @@ export class Plane {
     const hit = p1.add(dir.scale(t));
 
     // Wenn die Ebene begrenzt ist → Polygon-Test
-    if (this.boundary && !Plane.pointInConvexPolygon(hit, this.boundary, this.normal)) {
+    if (this.boundary && !isPointInConvexPolygon(hit, this.boundary, this.normal)) {
       return null;
     }
 
     return hit;
   }
+}
 
-  /**
-   * Prüft, ob ein Punkt innerhalb eines konvexen Polygons liegt (Edge-Cross-Test).
-   *
-   * @param p        zu prüfender Punkt (auf der Polygonebene)
-   * @param polygon  konvexes Polygon als Vec3-Array (CCW-Winding bzgl. `normal`)
-   * @param normal   Normalenvektor der Polygonebene
-   */
-  static pointInConvexPolygon(p: Vec3, polygon: Vec3[], normal: Vec3): boolean {
-    for (let i = 0; i < polygon.length; i++) {
-      const a = polygon[i];
-      const b = polygon[(i + 1) % polygon.length];
-      const edge = b.sub(a);
-      const toPoint = p.sub(a);
-      if (edge.cross(toPoint).dot(normal) < 0) return false;
-    }
-    return true;
+/**
+ * Ebene aus einem Face (3 oder 4 Vertices) erstellen – mit Boundary.
+ * Die ersten 3 Vertices definieren die Ebene, alle Vertices das Polygon.
+ *
+ * Beispiel: Vorderseite einer Box
+ *   const front = createPlaneFromFace([
+ *     boxVerts[0], boxVerts[3], boxVerts[2], boxVerts[1],
+ *   ]);
+ *   // front.intersectLine(p1, p2) prüft automatisch auf Polygon-Treffer
+ */
+export function createPlaneFromFace(faceVerts: Vec3[]): Plane {
+  const normal = faceVerts[1].sub(faceVerts[0])
+    .cross(faceVerts[2].sub(faceVerts[0]))
+    .normalize();
+  const distance = -normal.dot(faceVerts[0]);
+  return new Plane(normal, distance, [...faceVerts]);
+}
+
+/**
+ * Prüft, ob ein Punkt innerhalb eines konvexen Polygons liegt (Edge-Cross-Test).
+ *
+ * @param p        zu prüfender Punkt (auf der Polygonebene)
+ * @param polygon  konvexes Polygon als Vec3-Array (CCW-Winding bzgl. `normal`)
+ * @param normal   Normalenvektor der Polygonebene
+ */
+export function isPointInConvexPolygon(p: Vec3, polygon: Vec3[], normal: Vec3): boolean {
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i];
+    const b = polygon[(i + 1) % polygon.length];
+    const edge = b.sub(a);
+    const toPoint = p.sub(a);
+    if (edge.cross(toPoint).dot(normal) < 0) return false;
   }
+  return true;
 }
 

@@ -66,7 +66,7 @@ export class Body {
 
     const worldVerts = this.solid.vertices.map(v => v.add(this.pos));
     return this.faces.map(faceIdx =>
-      l3d.Plane.fromFace(faceIdx.map(i => worldVerts[i])),
+      l3d.createPlaneFromFace(faceIdx.map(i => worldVerts[i])),
     );
   }
 
