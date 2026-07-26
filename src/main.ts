@@ -4,7 +4,7 @@
 
 import * as wgl from "./lib-wgl.ts";
 import * as l3d from "./lib-3d.ts";
-import { Body } from "./lib-body.ts";
+import { Body, createBoxBody, createLineBody, createGridBody } from "./lib-body.ts";
 
 // ====================================================================
 // KONFIGURATION
@@ -25,18 +25,18 @@ const CAM_UP     = new l3d.Vec3(0, 1, 0);
 // SZENE AUFBAUEN
 // ====================================================================
 
-const grid = Body.createGrid(600, 24, 0, 0, 0);
+const grid = createGridBody(600, 24, 0, 0, 0);
 grid.color = "#777774";
 
-const line1 = Body.createLine(0, 0, 0, 0, 10, 150, 0, 0, -40);
+const line1 = createLineBody(0, 0, 0, 0, 10, 150, 0, 0, -40);
 line1.color = "#ff8800";
 line1.lineWidth = 2;
 
-const line2 = Body.createLine(0, 0, 0, 0, 60, 150, 0, 0, -40);
+const line2 = createLineBody(0, 0, 0, 0, 60, 150, 0, 0, -40);
 line2.color = "#ff8800";
 line2.lineWidth = 2;
 
-const box = Body.createBox(40, 80, 60, 0, 20, 100);
+const box = createBoxBody(40, 80, 60, 0, 20, 100);
 box.color = "#00ffff";
 box.lineWidth = 2;
 

@@ -54,71 +54,6 @@ export class Body {
   }
 
   // ================================================================
-  // STATIC FACTORIES
-  // ================================================================
-
-  /**
-   * Erzeugt einen achsenparallelen Quader (Box) mit faces-Topologie.
-   *
-   * @param w Breite (X-Richtung)
-   * @param h Höhe   (Y-Richtung)
-   * @param d Tiefe  (Z-Richtung)
-   * @param x,y,z Weltposition
-   */
-  static createBox(w: number, h: number, d: number, x: number, y: number, z: number): Body {
-    const box = new Body(createBox(w, h, d), x, y, z);
-    box.faces = [
-      [0, 3, 2, 1], // front
-      [4, 5, 6, 7], // back
-      [0, 4, 7, 3], // left
-      [1, 2, 6, 5], // right
-      [0, 1, 5, 4], // bottom
-      [3, 7, 6, 2], // top
-    ];
-    return box;
-  }
-
-  /**
-   * Erzeugt eine quadratische Pyramide mit faces-Topologie.
-   */
-  static createPyramid(base: number, height: number, x: number, y: number, z: number): Body {
-    const pyr = new Body(createPyramid(base, height), x, y, z);
-    pyr.faces = [
-      [0, 1, 4],       // vorne
-      [1, 2, 4],       // rechts
-      [2, 3, 4],       // hinten
-      [3, 0, 4],       // links
-      [3, 2, 1, 0],    // Basis (CCW von unten)
-    ];
-    return pyr;
-  }
-
-  /**
-   * Erzeugt eine einzelne Linie zwischen zwei 3D-Punkten.
-   */
-  static createLine(
-    x1: number, y1: number, z1: number,
-    x2: number, y2: number, z2: number,
-    px: number, py: number, pz: number,
-  ): Body {
-    return new Body(createLine(x1, y1, z1, x2, y2, z2), px, py, pz);
-  }
-
-  /**
-   * Erzeugt ein Gitter (Grid) in der XZ-Ebene.
-   */
-  static createGrid(size: number, cells: number, x: number, y: number, z: number): Body {
-    return new Body(createGrid(size, cells), x, y, z);
-  }
-
-  /**
-   * Erzeugt eine Drahtgitter-Kugel (UV-Sphere).
-   */
-  static createSphere(radius: number, slices: number, stacks: number, x: number, y: number, z: number): Body {
-    return new Body(createSphere(radius, slices, stacks), x, y, z);
-  }
-
-  // ================================================================
   // FACE / INTERSECTION
   // ================================================================
 
@@ -140,6 +75,7 @@ export class Body {
    * Der Startpunkt von `line` muss außerhalb des Bodys liegen.
    *
    * @param line Die zu kürzende Linie (wird bei Erfolg in-place geändert)
+   * @param planes Face-Planes dieses Bodys (via getFacePlanes())
    * @returns true wenn ein Treffer gefunden wurde, false sonst
    */
   clipLineEntry(line: Body, planes: l3d.Plane[]): boolean {
@@ -206,4 +142,69 @@ export class Body {
   distanceTo(other: Body): number {
     return this.pos.distanceTo(other.pos);
   }
+}
+
+// ====================================================================
+// BODY-FACTORIES (freistehende Funktionen, analog lib-solids.ts)
+// ====================================================================
+
+/**
+ * Erzeugt einen achsenparallelen Quader (Box) mit faces-Topologie.
+ *
+ * @param w Breite (X-Richtung)
+ * @param h Höhe   (Y-Richtung)
+ * @param d Tiefe  (Z-Richtung)
+ * @param x,y,z Weltposition
+ */
+export function createBoxBody(w: number, h: number, d: number, x: number, y: number, z: number): Body {
+  const box = new Body(createBox(w, h, d), x, y, z);
+  box.faces = [
+    [0, 3, 2, 1], // front
+    [4, 5, 6, 7], // back
+    [0, 4, 7, 3], // left
+    [1, 2, 6, 5], // right
+    [0, 1, 5, 4], // bottom
+    [3, 7, 6, 2], // top
+  ];
+  return box;
+}
+
+/**
+ * Erzeugt eine quadratische Pyramide mit faces-Topologie.
+ */
+export function createPyramidBody(base: number, height: number, x: number, y: number, z: number): Body {
+  const pyr = new Body(createPyramid(base, height), x, y, z);
+  pyr.faces = [
+    [0, 1, 4],       // vorne
+    [1, 2, 4],       // rechts
+    [2, 3, 4],       // hinten
+    [3, 0, 4],       // links
+    [3, 2, 1, 0],    // Basis (CCW von unten)
+  ];
+  return pyr;
+}
+
+/**
+ * Erzeugt eine einzelne Linie zwischen zwei 3D-Punkten.
+ */
+export function createLineBody(
+  x1: number, y1: number, z1: number,
+  x2: number, y2: number, z2: number,
+  px: number, py: number, pz: number,
+): Body {
+  return new Body(createLine(x1, y1, z1, x2, y2, z2), px, py, pz);
+}
+
+/**
+ * Erzeugt ein Gitter (Grid) in der XZ-Ebene.
+ */
+export function createGridBody(size: number, cells: number, x: number, y: number, z: number): Body {
+  return new Body(createGrid(size, cells), x, y, z);
+}
+
+/**
+ * Erzeugt eine Drahtgitter-Kugel (UV-Sphere).
+ */
+export function createSphereBody(radius: number, slices: number, stacks: number, x: number, y: number, z: number): Body {
+  return new Body(createSphere(radius, slices, stacks), x, y, z);
 }
