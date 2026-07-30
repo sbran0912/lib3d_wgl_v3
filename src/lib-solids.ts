@@ -68,10 +68,7 @@ export class Solid {
    *   → wgl.setModelView(view × world)
    *   → wgl.drawMesh (ein gl.drawArrays-Aufruf für alle Kanten)
    */
-  draw(
-    view: l3d.Matrix4x4,
-    world: l3d.Matrix4x4,
-  ): void {
+  draw(view: l3d.Matrix4x4, world: l3d.Matrix4x4,): void {
     this.ensureMesh();
     const vw = l3d.multMatrix(view, world);
     wgl.setModelView(vw);
@@ -160,12 +157,11 @@ export function createPyramid(base: number, height: number): Solid {
 export function createGrid(size: number, cells: number): Solid {
   const half = size / 2;
   const step = size / cells;
-  const V = (x: number, y: number, z: number) => new l3d.Vec3(x, y, z);
 
   const vertices: l3d.Vec3[] = [];
   for (let iz = 0; iz <= cells; iz++) {
     for (let ix = 0; ix <= cells; ix++) {
-      vertices.push(V(-half + ix * step, 0, -half + iz * step));
+      vertices.push(new l3d.Vec3(-half + ix * step, 0, -half + iz * step));
     }
   }
 
@@ -192,18 +188,14 @@ export function createGrid(size: number, cells: number): Solid {
 }
 
 /**
- * Erzeugt eine einzelne Linie zwischen zwei 3D-Punkten.
+ * Erzeugt eine einzelne Linie vom Ursprung (0,0,0) in die angegebene Richtung.
+ * Die Länge der Linie entspricht der Länge des Richtungsvektors.
  *
- * @param x1,y1,z1  Startpunkt
- * @param x2,y2,z2  Endpunkt
+ * @param direction  Richtungsvektor (nicht normiert – Länge bestimmt Linienlänge)
  * @returns Solid mit 2 Ecken und 1 Kante
  */
-export function createLine(
-  x1: number, y1: number, z1: number,
-  x2: number, y2: number, z2: number,
-): Solid {
-  const V = (x: number, y: number, z: number) => new l3d.Vec3(x, y, z);
-  const vertices = [V(x1, y1, z1), V(x2, y2, z2)];
+export function createLine(direction: l3d.Vec3): Solid {
+  const vertices = [new l3d.Vec3(0, 0, 0), direction];
   const edges: [number, number][] = [[0, 1]];
   return new Solid(vertices, edges);
 }

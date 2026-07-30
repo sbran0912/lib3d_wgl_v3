@@ -70,50 +70,9 @@ export class Body {
     );
   }
 
-  /**
-   * Kürzt eine Linie (line) auf den Eintrittspunkt in diesen Body.
-   * Der Startpunkt von `line` muss außerhalb des Bodys liegen.
-   *
-   * @param line Die zu kürzende Linie (wird bei Erfolg in-place geändert)
-   * @param planes Face-Planes dieses Bodys (via getFacePlanes())
-   * @returns true wenn ein Treffer gefunden wurde, false sonst
-   */
-  clipLineEntry(line: Body, planes: l3d.Plane[]): boolean {
-    if (planes.length === 0) return false;
-
-    const p1 = line.solid.vertices[0].add(line.pos);
-    const p2 = line.solid.vertices[1].add(line.pos);
-
-    let closestHit: l3d.Vec3 | null = null;
-    let closestDistSq = Infinity;
-    for (const face of planes) {
-      const hit = face.intersectLine(p1, p2);
-      if (hit) {
-        const dSq = hit.sub(p1).squaredLength();
-        if (dSq < closestDistSq) {
-          // Duplikat-Check: gleicher Punkt wie bisheriges Minimum?
-          if (!closestHit || hit.sub(closestHit).squaredLength() > 1e-8) {
-            closestDistSq = dSq;
-            closestHit = hit;
-          }
-        }
-      }
-    }
-
-    if (!closestHit) return false;
-
-    // Linie startet immer von außerhalb → erster Hit = Entry
-    const newVerts = [line.solid.vertices[0], closestHit.sub(line.pos)] as l3d.Vec3[];
-    const newEdges: [number, number][] = [[0, 1]];
-
-    line.solid = new Solid(newVerts, newEdges);
-    return true;
-  }
-
   /** Zeichnet den Body. Farbe und ModelView werden pro Body gesetzt,
    *  der Mesh-Buffer kommt aus dem Solid (shared). */
   draw(view: l3d.Matrix4x4): void {
-    // ── World-Matrix bauen ──
     const t = l3d.translateMatrix(this.pos.x, this.pos.y, this.pos.z);
     let world: l3d.Matrix4x4;
     if (this.rotX === 0 && this.rotY === 0 && this.rotZ === 0) {
@@ -142,6 +101,51 @@ export class Body {
   distanceTo(other: Body): number {
     return this.pos.distanceTo(other.pos);
   }
+}
+
+// ====================================================================
+// FREIE FUNKTIONEN
+// ====================================================================
+
+/**
+ * Kürzt eine Linie (line) auf den Eintrittspunkt in den Body,
+ * dessen Face-Planes übergeben werden.
+ * Der Startpunkt von `line` muss außerhalb des Bodys liegen.
+ *
+ * @param line   Die zu kürzende Linie (wird bei Erfolg in-place geändert)
+ * @param planes Face-Planes des zu treffenden Bodys (via getFacePlanes())
+ * @returns true wenn ein Treffer gefunden wurde, false sonst
+ */
+export function clipLineEntry(line: Body, planes: l3d.Plane[]): boolean {
+  if (planes.length === 0) return false;
+
+  const p1 = line.solid.vertices[0].add(line.pos);
+  const p2 = line.solid.vertices[1].add(line.pos);
+
+  let closestHit: l3d.Vec3 | null = null;
+  let closestDistSq = Infinity;
+  for (const face of planes) {
+    const hit = face.intersectLine(p1, p2);
+    if (hit) {
+      const dSq = hit.sub(p1).squaredLength();
+      if (dSq < closestDistSq) {
+        // Duplikat-Check: gleicher Punkt wie bisheriges Minimum?
+        if (!closestHit || hit.sub(closestHit).squaredLength() > 1e-8) {
+          closestDistSq = dSq;
+          closestHit = hit;
+        }
+      }
+    }
+  }
+
+  if (!closestHit) return false;
+
+  // Linie startet immer von außerhalb → erster Hit = Entry
+  const newVerts: l3d.Vec3[] = [line.solid.vertices[0], closestHit.sub(line.pos)];
+  const newEdges: [number, number][] = [[0, 1]];
+
+  line.solid = new Solid(newVerts, newEdges);
+  return true;
 }
 
 // ====================================================================
@@ -185,14 +189,12 @@ export function createPyramidBody(base: number, height: number, x: number, y: nu
 }
 
 /**
- * Erzeugt eine einzelne Linie zwischen zwei 3D-Punkten.
+ * Erzeugt eine einzelne Linie mit Startpunkt und Richtungsvektor.
+ * @param direction         Richtungsvektor (nicht normiert – Länge bestimmt Linienlänge)
+ * @param x,y,z             Startposition (Weltkoordinaten)
  */
-export function createLineBody(
-  x1: number, y1: number, z1: number,
-  x2: number, y2: number, z2: number,
-  px: number, py: number, pz: number,
-): Body {
-  return new Body(createLine(x1, y1, z1, x2, y2, z2), px, py, pz);
+export function createLineBody(direction: l3d.Vec3, x: number, y: number, z: number): Body {
+  return new Body(createLine(direction), x, y, z);
 }
 
 /**
