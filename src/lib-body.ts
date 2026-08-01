@@ -7,7 +7,7 @@
 
 import * as l3d from "./lib-3d.ts";
 import * as wgl from "./lib-wgl.ts";
-import { Solid, darkenHex, createBox, createLine, createGrid, createSphere, createPyramid } from "./lib-solids.ts";
+import { Solid, darkenHex, createBox, createGrid, createSphere, createPyramid } from "./lib-solids.ts";
 
 // ====================================================================
 // BODY
@@ -72,7 +72,7 @@ export class Body {
 
   /** Zeichnet den Body. Farbe und ModelView werden pro Body gesetzt,
    *  der Mesh-Buffer kommt aus dem Solid (shared). */
-  draw(view: l3d.Matrix4x4): void {
+  draw(view: l3d.Matrix4x4) {
     const t = l3d.translateMatrix(this.pos.x, this.pos.y, this.pos.z);
     let world: l3d.Matrix4x4;
     if (this.rotX === 0 && this.rotY === 0 && this.rotZ === 0) {
@@ -108,44 +108,39 @@ export class Body {
 // ====================================================================
 
 /**
- * Kürzt eine Linie (line) auf den Eintrittspunkt in den Body,
- * dessen Face-Planes übergeben werden.
- * Der Startpunkt von `line` muss außerhalb des Bodys liegen.
+ * Berechnet Entry- und Exit-Punkt einer Strecke durch einen Körper.
+ * Die Strecke wird nicht verändert – reine Berechnung.
  *
- * @param line   Die zu kürzende Linie (wird bei Erfolg in-place geändert)
- * @param planes Face-Planes des zu treffenden Bodys (via getFacePlanes())
- * @returns true wenn ein Treffer gefunden wurde, false sonst
+ * @param p1     Startpunkt der Strecke (Weltkoordinaten)
+ * @param p2     Endpunkt der Strecke (Weltkoordinaten)
+ * @param planes Face-Planes des zu prüfenden Körpers
+ * @returns { entry, exit } – null wenn kein Treffer
  */
-export function clipLineEntry(line: Body, planes: l3d.Plane[]): boolean {
-  if (planes.length === 0) return false;
+export function getLineIntersections(
+  p1: l3d.Vec3,
+  p2: l3d.Vec3,
+  planes: l3d.Plane[],
+): { entry: l3d.Vec3 | null; exit: l3d.Vec3 | null } {
+  if (planes.length === 0) return { entry: null, exit: null };
 
-  const p1 = line.solid.vertices[0].add(line.pos);
-  const p2 = line.solid.vertices[1].add(line.pos);
+  const hits: { point: l3d.Vec3; distSq: number }[] = [];
 
-  let closestHit: l3d.Vec3 | null = null;
-  let closestDistSq = Infinity;
   for (const face of planes) {
     const hit = face.intersectLine(p1, p2);
     if (hit) {
-      const dSq = hit.sub(p1).squaredLength();
-      if (dSq < closestDistSq) {
-        // Duplikat-Check: gleicher Punkt wie bisheriges Minimum?
-        if (!closestHit || hit.sub(closestHit).squaredLength() > 1e-8) {
-          closestDistSq = dSq;
-          closestHit = hit;
-        }
-      }
+      hits.push({ point: hit, distSq: hit.sub(p1).squaredLength() });
     }
   }
 
-  if (!closestHit) return false;
+  if (hits.length === 0) return { entry: null, exit: null };
 
-  // Linie startet immer von außerhalb → erster Hit = Entry
-  const newVerts: l3d.Vec3[] = [line.solid.vertices[0], closestHit.sub(line.pos)];
-  const newEdges: [number, number][] = [[0, 1]];
+  hits.sort((a, b) => a.distSq - b.distSq);
 
-  line.solid = new Solid(newVerts, newEdges);
-  return true;
+  // Entry = nächster Treffer, Exit = entferntester Treffer
+  return {
+    entry: hits[0].point,
+    exit: hits.length > 1 ? hits[hits.length - 1].point : null,
+  };
 }
 
 // ====================================================================
@@ -186,15 +181,6 @@ export function createPyramidBody(base: number, height: number, x: number, y: nu
     [3, 2, 1, 0],    // Basis (CCW von unten)
   ];
   return pyr;
-}
-
-/**
- * Erzeugt eine einzelne Linie mit Startpunkt und Richtungsvektor.
- * @param direction         Richtungsvektor (nicht normiert – Länge bestimmt Linienlänge)
- * @param x,y,z             Startposition (Weltkoordinaten)
- */
-export function createLineBody(direction: l3d.Vec3, x: number, y: number, z: number): Body {
-  return new Body(createLine(direction), x, y, z);
 }
 
 /**

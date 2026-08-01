@@ -188,19 +188,6 @@ export function createGrid(size: number, cells: number): Solid {
 }
 
 /**
- * Erzeugt eine einzelne Linie vom Ursprung (0,0,0) in die angegebene Richtung.
- * Die Länge der Linie entspricht der Länge des Richtungsvektors.
- *
- * @param direction  Richtungsvektor (nicht normiert – Länge bestimmt Linienlänge)
- * @returns Solid mit 2 Ecken und 1 Kante
- */
-export function createLine(direction: l3d.Vec3): Solid {
-  const vertices = [new l3d.Vec3(0, 0, 0), direction];
-  const edges: [number, number][] = [[0, 1]];
-  return new Solid(vertices, edges);
-}
-
-/**
  * Erzeugt eine Drahtgitter-Kugel (UV-Sphere).
  *
  * @param radius   Radius der Kugel

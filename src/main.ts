@@ -4,7 +4,7 @@
 
 import * as wgl from "./lib-wgl.ts";
 import * as l3d from "./lib-3d.ts";
-import { clipLineEntry, createBoxBody, createLineBody, createGridBody } from "./lib-body.ts";
+import { getLineIntersections, createBoxBody, createGridBody } from "./lib-body.ts";
 
 // ====================================================================
 // KONFIGURATION
@@ -28,27 +28,28 @@ const CAM_UP     = new l3d.Vec3(0, 1, 0);
 const grid = createGridBody(600, 24, 0, 0, 0);
 grid.color = "#777774";
 
-const line1 = createLineBody(new l3d.Vec3(0, 10, 150), 0, 0, -40);
-line1.color = "#ff8800";
-line1.lineWidth = 2;
+interface LineDef {
+  p1: l3d.Vec3;
+  p2: l3d.Vec3;
+  color: string;
+  lineWidth: number;
+}
 
-const line2 = createLineBody(new l3d.Vec3(0, 60, 150), 0, 0, -40);
-line2.color = "#ff8800";
-line2.lineWidth = 2;
+const lines: LineDef[] = [
+  { p1: new l3d.Vec3(0, 0, -40),  p2: new l3d.Vec3(0, 10, 160), color: "#ff8800", lineWidth: 2 },
+  { p1: new l3d.Vec3(0, 0, -40),  p2: new l3d.Vec3(0, 60, 160), color: "#ff8800", lineWidth: 2 },
+];
 
 const box = createBoxBody(40, 80, 60, 0, 20, 100);
 box.color = "#00ffff";
 box.lineWidth = 2;
 
-const bodies = [box, line1, line2];
+const bodies = [box];
 
 // ====================================================================
 // LINE↔BOX INTERSECTION – LINES CLIPPEN
 // ====================================================================
 const boxPlanes = box.getFacePlanes();
-for (const line of [line1, line2]) {
-  clipLineEntry(line, boxPlanes);
-}
 
 // ====================================================================
 // DRAW-SCHLEIFE
@@ -73,8 +74,30 @@ function draw() {
   // ================================================================
   // 2. ALLE BODYS ZEICHNEN
   // ================================================================
+
   for (const b of bodies) {
     b.draw(view);
+  }
+
+  for (const line of lines) {
+    wgl.setModelView(l3d.multMatrix(view, l3d.identityMatrix()));
+    const { entry, exit } = getLineIntersections(line.p1, line.p2, boxPlanes);
+
+    // Ganze Linie zeichnen
+    wgl.strokeColor(line.color);
+    wgl.strokeWidth(line.lineWidth);
+    wgl.line(line.p1.x, line.p1.y, line.p1.z, line.p2.x, line.p2.y, line.p2.z);
+
+    // Entry-Punkt markieren (rot)
+    if (entry) {
+      wgl.strokeColor("#ff0000");
+      wgl.point(entry.x, entry.y, entry.z);
+    }
+    // Exit-Punkt markieren (grün)
+    if (exit) {
+      wgl.strokeColor("#00ff00");
+      wgl.point(exit.x, exit.y, exit.z);
+    }
   }
 
 }
