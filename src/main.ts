@@ -53,11 +53,12 @@ const box = createBox(40, 80, 60, 0, 0, 100);
 box.color = "#00ffff";
 box.lineWidth = 2;
 
-const box2 = createBox(60, 100, 40, -70, 0, 100);
+const box2 = createBox(200, 100, 40, -100, 0, 150);
 box2.color = "#ff4444";
 box2.lineWidth = 2;
+box2.rotY = -0.7;
 
-const box3 = createBox(50, 70, 50, 100, 0, 0);
+const box3 = createBox(50, 70, 100, 100, 0, 0);
 box3.color = "#44ff44";
 box3.lineWidth = 2;
 
