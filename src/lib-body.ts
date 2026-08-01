@@ -12,7 +12,6 @@ import { Solid, darkenHex, createBoxSolid, createGridSolid, createSphereSolid, c
 // ====================================================================
 // BODY
 // ====================================================================
-
 export class Body {
   /** Geometrie (shared – kann zwischen Bodies geteilt werden) */
   solid: Solid;
@@ -104,49 +103,8 @@ export class Body {
 }
 
 // ====================================================================
-// FREIE FUNKTIONEN
-// ====================================================================
-
-/**
- * Berechnet Entry- und Exit-Punkt einer Strecke durch einen Körper.
- * Die Strecke wird nicht verändert – reine Berechnung.
- *
- * @param p1     Startpunkt der Strecke (Weltkoordinaten)
- * @param p2     Endpunkt der Strecke (Weltkoordinaten)
- * @param planes Face-Planes des zu prüfenden Körpers
- * @returns { entry, exit } – null wenn kein Treffer
- */
-export function getLineIntersections(
-  p1: l3d.Vec3,
-  p2: l3d.Vec3,
-  planes: l3d.Plane[],
-): { entry: l3d.Vec3 | null; exit: l3d.Vec3 | null } {
-  if (planes.length === 0) return { entry: null, exit: null };
-
-  const hits: { point: l3d.Vec3; distSq: number }[] = [];
-
-  for (const face of planes) {
-    const hit = face.intersectLine(p1, p2);
-    if (hit) {
-      hits.push({ point: hit, distSq: hit.sub(p1).squaredLength() });
-    }
-  }
-
-  if (hits.length === 0) return { entry: null, exit: null };
-
-  hits.sort((a, b) => a.distSq - b.distSq);
-
-  // Entry = nächster Treffer, Exit = entferntester Treffer
-  return {
-    entry: hits[0].point,
-    exit: hits.length > 1 ? hits[hits.length - 1].point : null,
-  };
-}
-
-// ====================================================================
 // LINIE IN WELTKOORDINATEN (2-Punkt-Zeichnen)
 // ====================================================================
-
 export class Line {
   p1: l3d.Vec3;
   p2: l3d.Vec3;
@@ -168,8 +126,12 @@ export class Line {
 }
 
 // ====================================================================
-// BODY-FACTORIES (freistehende Funktionen, analog lib-solids.ts)
+// FACTORIES (freistehende Funktionen)
 // ====================================================================
+/** Erzeugt eine Line aus zwei Weltkoordinaten-Punkten. */
+export function createLine(p1: l3d.Vec3, p2: l3d.Vec3): Line {
+  return new Line(p1, p2);
+}
 
 /**
  * Erzeugt einen achsenparallelen Quader (Box) mit faces-Topologie.
