@@ -4,7 +4,7 @@
 
 import * as wgl from "./lib-wgl.ts";
 import * as l3d from "./lib-3d.ts";
-import { getLineIntersections, createBoxBody, createGridBody } from "./lib-body.ts";
+import { getLineIntersections, createBox, createGrid, Line } from "./lib-body.ts";
 
 // ====================================================================
 // KONFIGURATION
@@ -25,22 +25,20 @@ const CAM_UP     = new l3d.Vec3(0, 1, 0);
 // SZENE AUFBAUEN
 // ====================================================================
 
-const grid = createGridBody(600, 24, 0, 0, 0);
+const grid = createGrid(600, 24, 0, 0, 0);
 grid.color = "#777774";
 
-interface LineDef {
-  p1: l3d.Vec3;
-  p2: l3d.Vec3;
-  color: string;
-  lineWidth: number;
-}
-
-const lines: LineDef[] = [
-  { p1: new l3d.Vec3(0, 0, -40),  p2: new l3d.Vec3(0, 10, 160), color: "#ff8800", lineWidth: 2 },
-  { p1: new l3d.Vec3(0, 0, -40),  p2: new l3d.Vec3(0, 60, 160), color: "#ff8800", lineWidth: 2 },
+const lines = [
+  new Line(new l3d.Vec3(0, 0, -40), new l3d.Vec3(0, 10, 160)),
+  new Line(new l3d.Vec3(0, 0, -40), new l3d.Vec3(0, 60, 160)),
 ];
 
-const box = createBoxBody(40, 80, 60, 0, 20, 100);
+for (const l of lines) {
+  l.color = "#ff8800";
+  l.lineWidth = 2;
+}
+
+const box = createBox(40, 80, 60, 0, 20, 100);
 box.color = "#00ffff";
 box.lineWidth = 2;
 
@@ -80,13 +78,8 @@ function draw() {
   }
 
   for (const line of lines) {
-    wgl.setModelView(l3d.multMatrix(view, l3d.identityMatrix()));
     const { entry, exit } = getLineIntersections(line.p1, line.p2, boxPlanes);
-
-    // Ganze Linie zeichnen
-    wgl.strokeColor(line.color);
-    wgl.strokeWidth(line.lineWidth);
-    wgl.line(line.p1.x, line.p1.y, line.p1.z, line.p2.x, line.p2.y, line.p2.z);
+    line.draw(view, entry ?? undefined);
 
     // Entry-Punkt markieren (rot)
     if (entry) {

@@ -91,7 +91,7 @@ export class Solid {
  * Beispiel:
  *   const box = createBox(40, 30, 60);
  */
-export function createBox(w: number, h: number, d: number): Solid {
+export function createBoxSolid(w: number, h: number, d: number): Solid {
   const hw = w / 2, hh = h / 2, hd = d / 2;
   const V = (x: number, y: number, z: number) => new l3d.Vec3(x, y, z);
 
@@ -125,7 +125,7 @@ export function createBox(w: number, h: number, d: number): Solid {
  * @param height Höhe der Pyramide (Spitze in +Y-Richtung)
  * @returns Solid mit 5 Ecken und 8 Kanten
  */
-export function createPyramid(base: number, height: number): Solid {
+export function createPyramidSolid(base: number, height: number): Solid {
   const hb = base / 2;
   const V = (x: number, y: number, z: number) => new l3d.Vec3(x, y, z);
 
@@ -154,7 +154,7 @@ export function createPyramid(base: number, height: number): Solid {
  * @param cells  Anzahl Zellen pro Seite (z.B. 5 → 5×5 Zellen)
  * @returns Solid mit (cells+1)² Punkten und passenden Kanten
  */
-export function createGrid(size: number, cells: number): Solid {
+export function createGridSolid(size: number, cells: number): Solid {
   const half = size / 2;
   const step = size / cells;
 
@@ -195,7 +195,7 @@ export function createGrid(size: number, cells: number): Solid {
  * @param stacks   Anzahl Breitenlinien (Horizontalringe, z.B. 12)
  * @returns Solid mit Gitternetz-Optik
  */
-export function createSphere(radius: number, slices = 16, stacks = 12): Solid {
+export function createSphereSolid(radius: number, slices = 16, stacks = 12): Solid {
   const V = (x: number, y: number, z: number) => new l3d.Vec3(x, y, z);
 
   const vertices: l3d.Vec3[] = [];

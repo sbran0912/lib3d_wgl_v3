@@ -7,7 +7,7 @@
 
 import * as l3d from "./lib-3d.ts";
 import * as wgl from "./lib-wgl.ts";
-import { Solid, darkenHex, createBox, createGrid, createSphere, createPyramid } from "./lib-solids.ts";
+import { Solid, darkenHex, createBoxSolid, createGridSolid, createSphereSolid, createPyramidSolid } from "./lib-solids.ts";
 
 // ====================================================================
 // BODY
@@ -144,6 +144,30 @@ export function getLineIntersections(
 }
 
 // ====================================================================
+// LINIE IN WELTKOORDINATEN (2-Punkt-Zeichnen)
+// ====================================================================
+
+export class Line {
+  p1: l3d.Vec3;
+  p2: l3d.Vec3;
+  color = "#ffffff";
+  lineWidth = 1;
+
+  constructor(p1: l3d.Vec3, p2: l3d.Vec3) {
+    this.p1 = p1;
+    this.p2 = p2;
+  }
+
+  draw(view: l3d.Matrix4x4, toPoint?: l3d.Vec3) {
+    wgl.setModelView(l3d.multMatrix(view, l3d.identityMatrix()));
+    wgl.strokeColor(this.color);
+    wgl.strokeWidth(this.lineWidth);
+    const end = toPoint ?? this.p2;
+    wgl.line(this.p1.x, this.p1.y, this.p1.z, end.x, end.y, end.z);
+  }
+}
+
+// ====================================================================
 // BODY-FACTORIES (freistehende Funktionen, analog lib-solids.ts)
 // ====================================================================
 
@@ -155,8 +179,8 @@ export function getLineIntersections(
  * @param d Tiefe  (Z-Richtung)
  * @param x,y,z Weltposition
  */
-export function createBoxBody(w: number, h: number, d: number, x: number, y: number, z: number): Body {
-  const box = new Body(createBox(w, h, d), x, y, z);
+export function createBox(w: number, h: number, d: number, x: number, y: number, z: number): Body {
+  const box = new Body(createBoxSolid(w, h, d), x, y, z);
   box.faces = [
     [0, 3, 2, 1], // front
     [4, 5, 6, 7], // back
@@ -171,8 +195,8 @@ export function createBoxBody(w: number, h: number, d: number, x: number, y: num
 /**
  * Erzeugt eine quadratische Pyramide mit faces-Topologie.
  */
-export function createPyramidBody(base: number, height: number, x: number, y: number, z: number): Body {
-  const pyr = new Body(createPyramid(base, height), x, y, z);
+export function createPyramid(base: number, height: number, x: number, y: number, z: number): Body {
+  const pyr = new Body(createPyramidSolid(base, height), x, y, z);
   pyr.faces = [
     [0, 1, 4],       // vorne
     [1, 2, 4],       // rechts
@@ -186,13 +210,13 @@ export function createPyramidBody(base: number, height: number, x: number, y: nu
 /**
  * Erzeugt ein Gitter (Grid) in der XZ-Ebene.
  */
-export function createGridBody(size: number, cells: number, x: number, y: number, z: number): Body {
-  return new Body(createGrid(size, cells), x, y, z);
+export function createGrid(size: number, cells: number, x: number, y: number, z: number): Body {
+  return new Body(createGridSolid(size, cells), x, y, z);
 }
 
 /**
  * Erzeugt eine Drahtgitter-Kugel (UV-Sphere).
  */
-export function createSphereBody(radius: number, slices: number, stacks: number, x: number, y: number, z: number): Body {
-  return new Body(createSphere(radius, slices, stacks), x, y, z);
+export function createSphere(radius: number, slices: number, stacks: number, x: number, y: number, z: number): Body {
+  return new Body(createSphereSolid(radius, slices, stacks), x, y, z);
 }
