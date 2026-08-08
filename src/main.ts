@@ -1,7 +1,3 @@
-/**
- * main.ts  –  Demo: Nur Gitter + Kugel
- */
-
 import * as wgl from "./lib-wgl.ts";
 import * as l3d from "./lib-3d.ts";
 import { createBox, createGrid, createLine, Line } from "./lib-body.ts";
@@ -33,7 +29,7 @@ grid.color = "#777774";
 // Lichtkegel: 20 Linien, gemeinsame Spitze, Enden kreisförmig angeordnet
 const APEX = new l3d.Vec3(0, 0, -40);
 const CONE_LEN = 600;
-const CONE_ANGLE = Math.PI / 60; 
+const CONE_ANGLE = Math.PI / 60;
 const CONE_R = CONE_LEN * Math.sin(CONE_ANGLE);
 const CONE_Z = CONE_LEN * Math.cos(CONE_ANGLE);
 
@@ -47,7 +43,7 @@ for (let i = 0; i < 20; i++) {
   );
   const l = createLine(APEX, end);
   l.color = "#ff8800";
-  l.lineWidth = 2;
+  l.lineWidth = 1;
   lines.push(l);
 }
 
