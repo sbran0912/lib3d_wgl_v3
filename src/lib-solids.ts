@@ -43,6 +43,12 @@ export class Solid {
   private meshBuffer: WebGLBuffer | null = null;
   private meshVertexCount = 0;
 
+  /** Referenzzähler (wie C ref_count).
+   *  Jeder Body, der dieses Solid nutzt, ruft retain() auf.
+   *  Bei release() wird der GPU-Buffer erst gelöscht, wenn
+   *  der Zähler auf 0 fällt. */
+  private refCount = 0;
+
   constructor(vertices: l3d.Vec3[], edges: [number, number][]) {
     this.vertices = vertices;
     this.edges = edges;
@@ -73,6 +79,21 @@ export class Solid {
     const vw = l3d.multMatrix(view, world);
     wgl.setModelView(vw);
     wgl.drawMesh(this.meshBuffer!, this.meshVertexCount);
+  }
+
+  /** Referenz erhöhen (wenn ein Body dieses Solid verwendet). */
+  retain(): void {
+    this.refCount++;
+  }
+
+  /** Referenz verringern. Fällt der Zähler auf 0, wird der GPU-Buffer freigegeben. */
+  release(): void {
+    if (--this.refCount > 0) return;
+    if (this.meshBuffer) {
+      wgl.deleteMesh(this.meshBuffer);
+      this.meshBuffer = null;
+      this.meshVertexCount = 0;
+    }
   }
 }
 

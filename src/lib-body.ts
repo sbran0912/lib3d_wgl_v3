@@ -7,7 +7,26 @@
 
 import * as l3d from "./lib-3d.ts";
 import * as wgl from "./lib-wgl.ts";
-import { Solid, darkenHex, createBoxSolid, createGridSolid, createSphereSolid, createPyramidSolid } from "./lib-solids.ts";
+import { Solid, createBoxSolid, createGridSolid, createSphereSolid, createPyramidSolid } from "./lib-solids.ts";
+
+// ====================================================================
+// BODYCONFIG (entspricht C BodyConfig + BODY_CONFIG_DEFAULT)
+// ====================================================================
+export interface BodyConfig {
+  color?: string;
+  lineWidth?: number;
+  rotX?: number;
+  rotY?: number;
+  rotZ?: number;
+}
+
+export const BODY_CONFIG_DEFAULT: BodyConfig = {
+  color: "#ffffff",
+  lineWidth: 1,
+  rotX: 0,
+  rotY: 0,
+  rotZ: 0,
+};
 
 // ====================================================================
 // BODY
@@ -38,18 +57,23 @@ export class Body {
    */
   faces?: number[][];
 
-  /**
-   * Körper-Nebel: ganzer Körper wird dunkler, je weiter er
-   * von der Kamera entfernt ist (absolute Kameratiefe).
-   */
-  static bodyFogNear = 50;
-  static bodyFogFar = 400;
-  static bodyFogMax = 0.6;
-
-  constructor(solid: Solid, x: number, y: number, z: number) {
+  constructor(solid: Solid, x: number, y: number, z: number, cfg: BodyConfig = BODY_CONFIG_DEFAULT) {
     this.solid = solid;
     this.pos = new l3d.Vec3(x, y, z);
     this.vel = new l3d.Vec3(0, 0, 0);
+    this.color = cfg.color ?? "#ffffff";
+    this.lineWidth = cfg.lineWidth ?? 1;
+    this.rotX = cfg.rotX ?? 0;
+    this.rotY = cfg.rotY ?? 0;
+    this.rotZ = cfg.rotZ ?? 0;
+    solid.retain();
+  }
+
+  /** Gibt die Solid-Referenz frei.
+   *  GPU-Buffer wird erst gelöscht, wenn der letzte Body
+   *  dieses Solid dispose() aufruft. */
+  dispose(): void {
+    this.solid.release();
   }
 
   // ================================================================
@@ -58,12 +82,17 @@ export class Body {
 
   /**
    * Liefert die Face-Planes dieses Körpers in Weltkoordinaten.
+   * Berücksichtigt sowohl Translation als auch Rotation.
    * Nur Bodies mit gesetzten `faces` liefern Ergebnisse.
    */
   getFacePlanes(): l3d.Plane[] {
     if (!this.faces || this.faces.length === 0) return [];
 
-    const worldVerts = this.solid.vertices.map(v => v.add(this.pos));
+    // Rotation + Translation auf alle Vertices anwenden (wie in C)
+    const rot = l3d.rotateMatrix(this.rotX, this.rotY, this.rotZ);
+    const worldVerts = this.solid.vertices.map(v =>
+      v.transform(rot).add(this.pos),
+    );
     return this.faces.map(faceIdx =>
       l3d.createPlaneFromFace(faceIdx.map(i => worldVerts[i])),
     );
@@ -81,16 +110,7 @@ export class Body {
     }
 
     wgl.strokeWidth(this.lineWidth);
-
-    // ── Körper-Nebel (absolute Tiefe) → Basis-Farbe abdunkeln ──
-    const centerCam = this.pos.transform(view);
-    const depth = centerCam.z;
-    let bodyFog = 0;
-    if (depth > Body.bodyFogNear) {
-      const t = Math.min(1, (depth - Body.bodyFogNear) / (Body.bodyFogFar - Body.bodyFogNear));
-      bodyFog = t * Body.bodyFogMax;
-    }
-    wgl.strokeColor(darkenHex(this.color, bodyFog));
+    wgl.strokeColor(this.color);
 
     // ── Solid zeichnet mit shared Mesh-Buffer + eigener ModelView ──
     this.solid.draw(view, world);
@@ -141,8 +161,8 @@ export function createLine(p1: l3d.Vec3, p2: l3d.Vec3): Line {
  * @param d Tiefe  (Z-Richtung)
  * @param x,y,z Weltposition
  */
-export function createBox(w: number, h: number, d: number, x: number, y: number, z: number): Body {
-  const box = new Body(createBoxSolid(w, h, d), x, y, z);
+export function createBox(w: number, h: number, d: number, x: number, y: number, z: number, cfg?: BodyConfig): Body {
+  const box = new Body(createBoxSolid(w, h, d), x, y, z, cfg);
   box.faces = [
     [0, 3, 2, 1], // front
     [4, 5, 6, 7], // back
@@ -157,8 +177,8 @@ export function createBox(w: number, h: number, d: number, x: number, y: number,
 /**
  * Erzeugt eine quadratische Pyramide mit faces-Topologie.
  */
-export function createPyramid(base: number, height: number, x: number, y: number, z: number): Body {
-  const pyr = new Body(createPyramidSolid(base, height), x, y, z);
+export function createPyramid(base: number, height: number, x: number, y: number, z: number, cfg?: BodyConfig): Body {
+  const pyr = new Body(createPyramidSolid(base, height), x, y, z, cfg);
   pyr.faces = [
     [0, 1, 4],       // vorne
     [1, 2, 4],       // rechts
@@ -172,13 +192,96 @@ export function createPyramid(base: number, height: number, x: number, y: number
 /**
  * Erzeugt ein Gitter (Grid) in der XZ-Ebene.
  */
-export function createGrid(size: number, cells: number, x: number, y: number, z: number): Body {
-  return new Body(createGridSolid(size, cells), x, y, z);
+export function createGrid(size: number, cells: number, x: number, y: number, z: number, cfg?: BodyConfig): Body {
+  return new Body(createGridSolid(size, cells), x, y, z, cfg);
 }
 
 /**
  * Erzeugt eine Drahtgitter-Kugel (UV-Sphere).
  */
-export function createSphere(radius: number, slices: number, stacks: number, x: number, y: number, z: number): Body {
-  return new Body(createSphereSolid(radius, slices, stacks), x, y, z);
+export function createSphere(radius: number, slices: number, stacks: number, x: number, y: number, z: number, cfg?: BodyConfig): Body {
+  return new Body(createSphereSolid(radius, slices, stacks), x, y, z, cfg);
+}
+
+// ====================================================================
+// VEHICLE – Physik-fähiges Fahrzeug mit Steering Behaviors
+// ====================================================================
+export class Vehicle {
+  body: Body;
+  vel: l3d.Vec3;
+  accel: l3d.Vec3;
+  heading: l3d.Vec3;
+
+  constructor(body: Body) {
+    this.body = body;
+    this.vel = new l3d.Vec3(0, 0, 0);
+    this.accel = new l3d.Vec3(0, 0, 0);
+    this.heading = new l3d.Vec3(0, 0, 0);
+  }
+
+  /** Richtung des Bodys an die aktuelle Geschwindigkeit anpassen. */
+  alignToVelocity() {
+    const v = this.vel;
+    const mag = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    if (mag < 0.0001) return;
+
+    const magXZ = Math.sqrt(v.x * v.x + v.z * v.z);
+    this.body.rotX = Math.acos(v.y / mag);
+    this.body.rotY = magXZ < 0.0001 ? 0 : Math.atan2(v.x / magXZ, v.z / magXZ);
+    this.body.rotZ = 0;
+
+    this.heading = new l3d.Vec3(v.x / mag, v.y / mag, v.z / mag);
+  }
+
+  /** Kraft auf das Fahrzeug anwenden (akkumuliert in accel). */
+  applyForce(force: l3d.Vec3) {
+    this.accel = this.accel.add(force);
+  }
+
+  /** Physik-Update: Geschwindigkeit aus Beschleunigung, Position aus Geschwindigkeit. */
+  update() {
+    this.vel = this.vel.add(this.accel);
+    this.accel = new l3d.Vec3(0, 0, 0);
+    this.body.pos = this.body.pos.add(this.vel);
+  }
+
+  /** Steering: Seek-Verhalten – bewegt sich mit maxSpeed=3, maxForce=1 auf ein Ziel zu. */
+  seek(target: l3d.Vec3) {
+    const desired = target.sub(this.body.pos).mag(3);
+    const steer = desired.sub(this.vel).limit(1);
+    this.applyForce(steer.scale(0.2));
+  }
+}
+
+/** Erzeugt einen Array von Futter-Körpern an Zufallspositionen. */
+export function createFood(count: number, color: string, randomFn: (min: number, max: number) => number): Body[] {
+  const food: Body[] = [];
+  const singleFoodMesh = createSphereSolid(3, 8, 8);
+  const cfg: BodyConfig = { color, lineWidth: 1 };
+  for (let i = 0; i < count; i++) {
+    food.push(new Body(singleFoodMesh, randomFn(-100, 100), randomFn(-100, 100), randomFn(-100, 100), cfg));
+  }
+  return food;
+}
+
+/** Lässt ein Vehicle das nächste Futter suchen und fressen. */
+export function vehicleEatFood(vehic: Vehicle, food: Body[]) {
+  let mindist = Infinity;
+  let idx = -1;
+
+  for (let i = 0; i < food.length; i++) {
+    const distance = vehic.body.pos.distanceTo(food[i].pos);
+    if (distance < 100 && distance < mindist) {
+      mindist = distance;
+      idx = i;
+    }
+  }
+
+  if (idx > -1) {
+    if (vehic.body.pos.distanceTo(food[idx].pos) < 3) {
+      food.splice(idx, 1);  // eat food
+    } else {
+      vehic.seek(food[idx].pos);
+    }
+  }
 }

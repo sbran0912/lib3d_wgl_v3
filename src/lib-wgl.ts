@@ -49,6 +49,9 @@ const FRAG_SRC = `
   uniform float uTime;
   uniform vec3  uShapeCenter;   // Zentrum in Kamera-Koordinaten
   uniform float uShapeRadius;
+  uniform float uFogNear;
+  uniform float uFogFar;
+  uniform vec4  uFogColor;
   varying vec3  vCamPos;
 
   void main() {
@@ -64,6 +67,11 @@ const FRAG_SRC = `
     } else {
       gl_FragColor = uColor;
     }
+
+    // Nebel (Tiefen-basiert im Kamera-Raum)
+    float depth = vCamPos.z;
+    float fog_t = clamp((depth - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
+    gl_FragColor = mix(gl_FragColor, uFogColor, fog_t);
   }
 `;
 
@@ -100,6 +108,9 @@ let locColor2:      WebGLUniformLocation;
 let locTime:        WebGLUniformLocation;
 let locCenter:      WebGLUniformLocation;
 let locRadius:      WebGLUniformLocation;
+let locFogNear:     WebGLUniformLocation;
+let locFogFar:      WebGLUniformLocation;
+let locFogColor:    WebGLUniformLocation;
 
 // Animation
 let looping   = true;
@@ -238,6 +249,11 @@ export function drawMesh(buf: WebGLBuffer, count: number) {
   gl.drawArrays(gl.LINES, 0, count);
 }
 
+/** Gibt einen per createMesh() angelegten GPU-Buffer frei. */
+export function deleteMesh(buf: WebGLBuffer) {
+  gl.deleteBuffer(buf);
+}
+
 /** Berechnet Mittelpunkt und maximale Ausdehnung einer 3D-Punktmenge */
 function shapeMetrics3D(pts: number[]): { cx: number; cy: number; cz: number; r: number } {
   const n = pts.length / 3;
@@ -313,6 +329,19 @@ export function setGradientCenter(cx: number, cy: number, cz: number, radius: nu
   gl.uniform1f(locRadius, radius);
 }
 
+/** Aktiviert Tiefen-Nebel.
+ *  Alle Objekte werden ab near immer mehr von der Nebelfarbe überdeckt,
+ *  bis sie bei far vollständig darin verschwinden.
+ *  @param near  Distanz (in Kamera-Z), ab der Nebel einsetzt
+ *  @param far   Distanz, bei der Nebel voll deckt
+ *  @param r,g,b,a  Nebelfarbe (0..1)
+ */
+export function setFog(near: number, far: number, r: number, g: number, b: number, a: number) {
+  gl.uniform1f(locFogNear, near);
+  gl.uniform1f(locFogFar, far);
+  gl.uniform4f(locFogColor, r, g, b, a);
+}
+
 /** Initialisiert Canvas und WebGL-Kontext.
  *  Koordinatenursprung liegt in der Mitte, +Y zeigt nach oben.
  *  Depth-Testing ist aktiviert.
@@ -338,6 +367,9 @@ export function init(w: number, h: number) {
   locTime       = gl.getUniformLocation(prog, "uTime")!;
   locCenter     = gl.getUniformLocation(prog, "uShapeCenter")!;
   locRadius     = gl.getUniformLocation(prog, "uShapeRadius")!;
+  locFogNear    = gl.getUniformLocation(prog, "uFogNear")!;
+  locFogFar     = gl.getUniformLocation(prog, "uFogFar")!;
+  locFogColor   = gl.getUniformLocation(prog, "uFogColor")!;
 
   gl.uniform1f(locPointSize, 4.0);
   gl.uniform3f(locCenter, 0, 0, 0);
@@ -347,6 +379,11 @@ export function init(w: number, h: number) {
   const identity = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
   gl.uniformMatrix4fv(locProjection, false, new Float32Array(identity));
   gl.uniformMatrix4fv(locModelView,  false, new Float32Array(identity));
+
+  // Fog-Defaults (kein Nebel)
+  gl.uniform1f(locFogNear, 0);
+  gl.uniform1f(locFogFar, 1);
+  gl.uniform4f(locFogColor, 0, 0, 0, 0);
 
   // Depth-Testing + Alpha-Blending
   gl.enable(gl.DEPTH_TEST);

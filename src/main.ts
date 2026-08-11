@@ -107,6 +107,7 @@ function draw() {
   time += 0.02;
 
   wgl.background(40, 40, 40);
+  wgl.setFog(100, 600, 0.25, 0.25, 0.25, 1);
 
   const camAngle = time * CAM_SPEED;
   const camPos = new l3d.Vec3(

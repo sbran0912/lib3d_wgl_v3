@@ -29,6 +29,23 @@ export class Vec3 {
     return new Vec3(this.x * s, this.y * s, this.z * s);
   }
 
+  /** Auf eine bestimmte Ziel-Länge skalieren (Magnitude).
+   *  Nullvektor bleibt null. */
+  mag(m: number): Vec3 {
+    const len = this.length();
+    if (len === 0) return new Vec3(0, 0, 0);
+    return this.scale(m / len);
+  }
+
+  /** Länge des Vektors auf einen Maximalwert begrenzen. */
+  limit(max: number): Vec3 {
+    const mSq = this.squaredLength();
+    if (mSq > max * max) {
+      return this.scale(max / Math.sqrt(mSq));
+    }
+    return this.clone();
+  }
+
   /** Vorzeichen umkehren: -this */
   negate(): Vec3 {
     return new Vec3(-this.x, -this.y, -this.z);
