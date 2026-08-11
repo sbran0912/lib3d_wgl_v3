@@ -1,6 +1,6 @@
 import * as wgl from "./lib-wgl.ts";
 import * as l3d from "./lib-3d.ts";
-import { createBox, createGrid, createLine, createPyramid, Line, Body } from "./lib-body.ts";
+import { createBox, createGrid, createLine, Line } from "./lib-body.ts";
 
 // ====================================================================
 // KONFIGURATION
@@ -15,9 +15,9 @@ const Z_FAR = 1000;
 
 const CAM_TARGET = new l3d.Vec3(0, 0, 0);
 const CAM_UP     = new l3d.Vec3(0, 1, 0);
-const CAM_RADIUS = Math.sqrt(40 * 40 + 180 * 180);
+const CAM_RADIUS = Math.sqrt(40 * 40 + 180 * 180); // Abstand der Startposition zur Y-Achse
 const CAM_HEIGHT = 140;
-const CAM_SPEED  = 0.15;
+const CAM_SPEED  = 0.15;  // rad pro Zeitschritt → ~360° in ca. 35 s
 
 // ====================================================================
 // SZENE AUFBAUEN
@@ -26,7 +26,7 @@ const CAM_SPEED  = 0.15;
 const grid = createGrid(600, 24, 0, 0, 0);
 grid.color = "#777774";
 
-// Lichtkegel
+// Lichtkegel: 20 Linien, gemeinsame Spitze, Enden kreisförmig angeordnet
 const APEX = new l3d.Vec3(0, 0, -40);
 const CONE_LEN = 600;
 const CONE_ANGLE = Math.PI / 60;
@@ -54,6 +54,7 @@ box.lineWidth = 2;
 const box2 = createBox(200, 100, 40, -140, 0, 150);
 box2.color = "#ff4444";
 box2.lineWidth = 2;
+//box2.rotY = -0.7;
 
 const box3 = createBox(50, 70, 100, 100, 0, 0);
 box3.color = "#44ff44";
@@ -63,35 +64,12 @@ const box4 = createBox(60, 70, 50, 0, 0, -150);
 box4.color = "#aa66ff";
 box4.lineWidth = 2;
 
-// ── Pyramide im Orbit um Y-Achse ──
-const PYRAMID_RADIUS = 120;
-const PYRAMID_SPEED  = 0.02;
-
-const pyramid = createPyramid(10, 20, PYRAMID_RADIUS, 50, 0);
-pyramid.color = "#ffcc00";
-pyramid.lineWidth = 2;
-
-const bodies = [box, box2, box3, box4, pyramid];
+const bodies = [box, box2, box3, box4];
 
 // ====================================================================
-// LINE↔BODY INTERSECTION
+// LINE↔BOX INTERSECTION – LINES CLIPPEN
 // ====================================================================
 const boxPlanes = [box.getFacePlanes(), box2.getFacePlanes(), box3.getFacePlanes(), box4.getFacePlanes()];
-
-// ====================================================================
-// alignToVelocity – Pyramide zeigt mit Spitze in Flugrichtung
-// ====================================================================
-function alignToVelocity(body: Body) {
-  const v = body.vel;
-  const magXZ = Math.sqrt(v.x * v.x + v.z * v.z);
-  if (magXZ < 0.0001) return;
-
-  // rotX = π/2  →  Spitze (Y+) wird nach Z+ gekippt
-  // rotY        →  dreht Z+ in gewünschte XZ-Richtung
-  body.rotX = Math.PI / 2;
-  body.rotY = Math.atan2(v.x / magXZ, v.z / magXZ);
-  body.rotZ = 0;
-}
 
 // ====================================================================
 // DRAW-SCHLEIFE
@@ -99,7 +77,6 @@ function alignToVelocity(body: Body) {
 
 let time = 0;
 let coneRotY = 0;
-let pyramidAngle = 0;
 
 const ROT_DELTA = 0.01;
 
@@ -108,6 +85,7 @@ function draw() {
 
   wgl.background(40, 40, 40);
 
+  // Kamera wandert auf einem Kreis um die Y-Achse (360°-Umrundung)
   const camAngle = time * CAM_SPEED;
   const camPos = new l3d.Vec3(
     Math.sin(camAngle) * CAM_RADIUS,
@@ -118,46 +96,32 @@ function draw() {
   const proj = l3d.perspectiveMatrix(FOV_Y, SCREEN_W / SCREEN_H, Z_NEAR, Z_FAR);
   wgl.setProjection(proj);
 
-  // 1. Gitter
+  // ================================================================
+  // 1. BODEN-GITTER
+  // ================================================================
   grid.draw(view);
 
-  // 2. Pyramide – Orbit + Ausrichtung
-  pyramidAngle += PYRAMID_SPEED;
+  // ================================================================
+  // 2. ALLE BODYS ZEICHNEN
+  // ================================================================
 
-  pyramid.pos.x = Math.cos(pyramidAngle) * PYRAMID_RADIUS;
-  pyramid.pos.y = 50;
-  pyramid.pos.z = Math.sin(pyramidAngle) * PYRAMID_RADIUS;
-
-  // Tangentialgeschwindigkeit (Ableitung der Kreisbahn)
-  const vMag = PYRAMID_RADIUS * PYRAMID_SPEED;
-  pyramid.vel.x = -Math.sin(pyramidAngle) * vMag;
-  pyramid.vel.y = 0;
-  pyramid.vel.z =  Math.cos(pyramidAngle) * vMag;
-
-  alignToVelocity(pyramid);
-
-  // 3. Alle Bodys zeichnen
   for (const b of bodies) {
     b.draw(view);
   }
 
-  // 4. Lichtkegel rotieren + Clipping
   coneRotY += ROT_DELTA;
   const coneRot = l3d.rotateMatrix(0, coneRotY, 0);
-
-  // Clipping-Ebenen: statische Boxen + Pyramide (pro Frame neu!)
-  const allPlanes = [...boxPlanes, pyramid.getFacePlanes()];
 
   for (const line of lines) {
     const rotatedEnd = l3d.rotateAround(line.p2, line.p1, coneRot);
     let endpoint = rotatedEnd;
     let maxdist = rotatedEnd.sub(line.p1).squaredLength();
-    for (const bp of allPlanes) {
+    for (const bp of boxPlanes) {
       for (const face of bp) {
         const hit = face.intersectLine(line.p1, rotatedEnd);
         if (hit) {
           const dist = hit.sub(line.p1).squaredLength();
-          if (dist < maxdist) {
+          if ( dist < maxdist) {
             endpoint = hit;
             maxdist = dist;
           }
