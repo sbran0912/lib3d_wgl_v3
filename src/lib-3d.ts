@@ -409,3 +409,15 @@ export function isPointInConvexPolygon(p: Vec3, polygon: Vec3[], normal: Vec3): 
   return true;
 }
 
+export function constrain(value:number, min:number, max:number):number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function random(n1:number, n2:number):number {
+  return Math.floor(Math.random() * (n2 - n1) + n1);
+}
+
+export function randomFloat(min:number, max:number):number {
+  return Math.random() * (max - min) + min;
+}
+
